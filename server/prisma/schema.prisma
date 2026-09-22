@@ -1,0 +1,189 @@
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           String   @id @default(uuid())
+  role         String   // "teacher" | "student"
+  fullName     String
+  email        String   @unique
+  passwordHash String
+  teacherId    String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  teacher         User?            @relation("TeacherStudents", fields: [teacherId], references: [id], onDelete: SetNull)
+  students        User[]           @relation("TeacherStudents")
+  mockExams       MockExam[]
+  submissions     ExamSubmission[] @relation("StudentSubmissions")
+  checkedReviews  ExamSubmission[] @relation("TeacherCheckedSubmissions")
+  theorySections  TheorySection[]
+  quizAttempts    QuizAttempt[]
+  notifications   Notification[]
+}
+
+model MockExam {
+  id                  String   @id @default(uuid())
+  teacherId           String
+  teacher             User     @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  title               String
+  textATitle          String
+  textAContent        String
+  textBTitle          String
+  textBContent        String
+  task1aInstruction   String
+  task1aMaxScore      Int      @default(15)
+  task1aeInstruction  String
+  task1aeWordMin      Int      @default(150)
+  task1aeWordMax      Int      @default(180)
+  task1aeMaxScore     Int      @default(20)
+  task2Option1        String
+  task2Option2        String
+  task2Option3        String
+  task2WordMin        Int      @default(350)
+  task2WordMax        Int      @default(450)
+  task2MaxScore       Int      @default(25)
+  timeLimitMinutes    Int      @default(135)
+  scoringCriteriaJson String   // Official rubric bands JSON
+  status              String   @default("published") // "draft" | "published" | "archived"
+  createdAt           DateTime @default(now())
+
+  submissions ExamSubmission[]
+}
+
+model ExamSubmission {
+  id                 String    @id @default(uuid())
+  mockExamId         String
+  mockExam           MockExam  @relation(fields: [mockExamId], references: [id], onDelete: Cascade)
+  studentId          String
+  student            User      @relation("StudentSubmissions", fields: [studentId], references: [id], onDelete: Cascade)
+  startedAt          DateTime  @default(now())
+  submittedAt        DateTime?
+  timeSpentSeconds   Int       @default(0)
+  answer1aText       String    @default("")
+  answer1aeText      String    @default("")
+  task2ChosenOption  Int?
+  answer2Text        String    @default("")
+  status             String    @default("in_progress") // "in_progress" | "submitted" | "checked"
+  score1a            Int?
+  score1ae           Int?
+  score2             Int?
+  totalScore         Int?
+  letterGrade        String?   // "A*", "A", "B", "C", "D", "E", "U"
+  teacherComment1a   String?
+  teacherComment1ae  String?
+  teacherComment2    String?
+  checkedAt          DateTime?
+  checkedById        String?
+  checkedBy          User?     @relation("TeacherCheckedSubmissions", fields: [checkedById], references: [id], onDelete: SetNull)
+}
+
+model TheorySection {
+  id        String   @id @default(uuid())
+  name      String   // "oqylym" | "jazylym"
+  title     String   // "Оқылым" | "Жазылым"
+  teacherId String
+  teacher   User     @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  topics    TheoryTopic[]
+}
+
+model TheoryTopic {
+  id                String       @id @default(uuid())
+  sectionId         String
+  section           TheorySection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  parentTopicId     String?
+  parentTopic       TheoryTopic?  @relation("TopicHierarchy", fields: [parentTopicId], references: [id], onDelete: Cascade)
+  subTopics         TheoryTopic[] @relation("TopicHierarchy")
+  title             String
+  description       String?
+  theoryContentHtml String
+  orderIndex        Int          @default(0)
+  createdAt         DateTime     @default(now())
+
+  files   TheoryFile[]
+  quizzes Quiz[]
+}
+
+model TheoryFile {
+  id         String      @id @default(uuid())
+  topicId    String
+  topic      TheoryTopic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  fileName   String
+  fileUrl    String
+  fileType   String
+  fileSize   Int         @default(0)
+  uploadedAt DateTime    @default(now())
+}
+
+model Quiz {
+  id               String         @id @default(uuid())
+  topicId          String
+  topic            TheoryTopic    @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  title            String
+  passingScore     Int?           @default(70)
+  timeLimitMinutes Int?
+  createdAt        DateTime       @default(now())
+
+  questions QuizQuestion[]
+  attempts  QuizAttempt[]
+}
+
+model QuizQuestion {
+  id           String   @id @default(uuid())
+  quizId       String
+  quiz         Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  questionText String
+  questionType String   // "single_choice" | "multiple_choice" | "matching"
+  orderIndex   Int      @default(0)
+  points       Int      @default(1)
+
+  options       QuizOption[]
+  matchingPairs QuizMatchingPair[]
+}
+
+model QuizOption {
+  id         String       @id @default(uuid())
+  questionId String
+  question   QuizQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  optionText String
+  isCorrect  Boolean      @default(false)
+  orderIndex Int          @default(0)
+}
+
+model QuizMatchingPair {
+  id            String       @id @default(uuid())
+  questionId    String
+  question      QuizQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  leftItemText  String
+  rightItemText String
+  orderIndex    Int          @default(0)
+}
+
+model QuizAttempt {
+  id          String    @id @default(uuid())
+  quizId      String
+  quiz        Quiz      @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  studentId   String
+  student     User      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  startedAt   DateTime  @default(now())
+  submittedAt DateTime?
+  score       Int       @default(0)
+  maxScore    Int       @default(0)
+  answersJson String    // Student answers & question feedback
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String   // "exam_checked" | "new_material" | "new_mock_exam"
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}

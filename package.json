@@ -1,0 +1,14 @@
+{
+  "name": "nis-et-kazakh-platform",
+  "version": "1.0.0",
+  "description": "Educational platform for Grade 10 NIS External Summative Assessment in Kazakh Language & Literature (T1)",
+  "scripts": {
+    "server": "npm --prefix server run dev",
+    "client": "npm --prefix client run dev",
+    "seed": "npm --prefix server run prisma:seed",
+    "build": "npm --prefix server run build && npm --prefix client run build"
+  },
+  "keywords": ["nis", "kazakh", "exam", "education", "react", "express"],
+  "author": "Google DeepMind pair programming with Erasyl",
+  "license": "MIT"
+}
