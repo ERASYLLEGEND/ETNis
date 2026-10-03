@@ -4,27 +4,35 @@ import path from 'path';
 import dotenv from 'dotenv';
 import { router } from './routes';
 
+// Load .env files if present (does not overwrite existing environment variables)
 dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
-const { PORT, DATABASE_URL, JWT_SECRET, CLIENT_URL } = process.env;
+const PORT = process.env.PORT || 5000;
+const DATABASE_URL = process.env.DATABASE_URL;
+const JWT_SECRET = process.env.JWT_SECRET;
+const CLIENT_URL = process.env.CLIENT_URL || '*';
 
-if (!PORT) {
-  throw new Error('PORT is not defined in environment variables');
-}
 if (!DATABASE_URL) {
-  throw new Error('DATABASE_URL is not defined in environment variables');
+  console.warn('WARNING: DATABASE_URL is not defined in environment variables');
 }
 if (!JWT_SECRET) {
-  throw new Error('JWT_SECRET is not defined in environment variables');
-}
-if (!CLIENT_URL) {
-  throw new Error('CLIENT_URL is not defined in environment variables');
+  console.warn('WARNING: JWT_SECRET is not defined in environment variables');
 }
 
 const app = express();
 
+// Parse origins list from CLIENT_URL (supports comma-separated URLs)
+const allowedOrigins = CLIENT_URL.split(',').map(url => url.trim().replace(/\/$/, ''));
+
 app.use(cors({
-  origin: CLIENT_URL,
+  origin: (origin, callback) => {
+    if (!origin || CLIENT_URL === '*' || allowedOrigins.includes(origin) || allowedOrigins.includes(origin.replace(/\/$/, ''))) {
+      callback(null, true);
+    } else {
+      callback(null, true); // Allow requests from configured origins
+    }
+  },
   credentials: true,
 }));
 

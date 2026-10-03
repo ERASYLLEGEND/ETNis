@@ -1,0 +1,91 @@
+﻿16bde51 Add full project code
+1d4c9e6 first commit
+---STATUS---
+On branch main
+Your branch is ahead of 'origin/main' by 1 commit.
+  (use "git push" to publish your local commits)
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	git_output.txt
+
+nothing added to commit but untracked files present (use "git add" to track)
+---REMOTE---
+origin	https://github.com/ERASYLLEGEND/ETNis.git (fetch)
+origin	https://github.com/ERASYLLEGEND/ETNis.git (push)
+---FILES (count)---
+
+Lines Words Characters Property
+----- ----- ---------- --------
+   68                          
+
+
+---FILES LIST---
+.gitignore
+README.md
+client/.env.example
+client/index.html
+client/package-lock.json
+client/package.json
+client/postcss.config.js
+client/src/App.tsx
+client/src/api/client.ts
+client/src/components/common/Layout.tsx
+client/src/components/common/Modal.tsx
+client/src/components/common/Navbar.tsx
+client/src/components/common/Sidebar.tsx
+client/src/components/common/WordCounterBadge.tsx
+client/src/context/AuthContext.tsx
+client/src/index.css
+client/src/main.tsx
+client/src/pages/auth/Login.tsx
+client/src/pages/student/ExamRunner.tsx
+client/src/pages/student/QuizRunner.tsx
+client/src/pages/student/StudentDashboard.tsx
+client/src/pages/student/StudentExams.tsx
+client/src/pages/student/StudentMaterials.tsx
+client/src/pages/student/StudentResults.tsx
+client/src/pages/student/TopicDetailView.tsx
+client/src/pages/teacher/ExamList.tsx
+client/src/pages/teacher/ExamWizard.tsx
+client/src/pages/teacher/GradingList.tsx
+client/src/pages/teacher/GradingWorkbench.tsx
+client/src/pages/teacher/MaterialsManagement.tsx
+client/src/pages/teacher/QuizBuilder.tsx
+client/src/pages/teacher/StudentDetail.tsx
+client/src/pages/teacher/StudentManagement.tsx
+client/src/pages/teacher/TeacherDashboard.tsx
+client/src/types/index.ts
+client/src/utils/wordCount.ts
+client/tailwind.config.js
+client/tsconfig.json
+client/tsconfig.node.json
+client/vite.config.ts
+package-lock.json
+package.json
+server/.env.example
+server/package-lock.json
+server/package.json
+server/prisma/create-teacher.ts
+server/prisma/dev.db
+server/prisma/migrations/20260920115314_init/migration.sql
+server/prisma/migrations/migration_lock.toml
+server/prisma/schema.prisma
+server/prisma/seed.ts
+server/src/controllers/authController.ts
+server/src/controllers/examController.ts
+server/src/controllers/quizController.ts
+server/src/controllers/statsController.ts
+server/src/controllers/studentController.ts
+server/src/controllers/submissionController.ts
+server/src/controllers/theoryController.ts
+server/src/index.ts
+server/src/middleware/auth.ts
+server/src/middleware/validate.ts
+server/src/prisma/client.ts
+server/src/routes/index.ts
+server/src/utils/gradingScale.ts
+server/src/utils/jwt.ts
+server/src/utils/upload.ts
+server/src/utils/wordCount.ts
+server/tsconfig.json

@@ -5,13 +5,14 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
-    "build": "tsc",
-    "start": "node dist/index.js",
+    "build": "npx prisma generate && tsc",
+    "start": "npx prisma migrate deploy && node dist/index.js",
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
     "prisma:seed": "ts-node --transpile-only prisma/seed.ts",
     "seed": "ts-node prisma/seed.ts",
-    "create-teacher": "ts-node prisma/create-teacher.ts"
+    "create-teacher": "ts-node prisma/create-teacher.ts",
+    "add-teacher": "ts-node prisma/add-teacher.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

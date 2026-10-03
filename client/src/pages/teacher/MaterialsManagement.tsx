@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import api from '../../api/client';
+import api, { getFileUrl } from '../../api/client';
 import { Modal } from '../../components/common/Modal';
 import {
   BookOpen,
@@ -12,7 +12,28 @@ import {
   Edit,
   FileCode,
   HelpCircle,
+  Download,
+  Paperclip,
+  Image as ImageIcon,
+  FileSpreadsheet,
 } from 'lucide-react';
+
+function formatFileSize(bytes: number): string {
+  if (!bytes || bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+}
+
+function getFileIcon(fileType: string) {
+  const type = (fileType || '').toLowerCase();
+  if (type.includes('pdf')) return <FileText className="w-4 h-4 text-red-600 shrink-0" />;
+  if (type.includes('doc')) return <FileText className="w-4 h-4 text-blue-600 shrink-0" />;
+  if (type.includes('ppt')) return <FileSpreadsheet className="w-4 h-4 text-orange-600 shrink-0" />;
+  if (type.match(/png|jpg|jpeg|webp|gif|svg/)) return <ImageIcon className="w-4 h-4 text-emerald-600 shrink-0" />;
+  return <FileCode className="w-4 h-4 text-nis-navy-700 shrink-0" />;
+}
 
 export const MaterialsManagement: React.FC = () => {
   const [sections, setSections] = useState<any[]>([]);
@@ -22,13 +43,15 @@ export const MaterialsManagement: React.FC = () => {
   // Topic Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTopicId, setEditingTopicId] = useState<string | null>(null);
+  const [editingTopicFiles, setEditingTopicFiles] = useState<any[]>([]);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [theoryContentHtml, setTheoryContentHtml] = useState('');
   const [parentTopicId, setParentTopicId] = useState<string | null>(null);
+  const [modalFile, setModalFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // File Upload modal
+  // Quick File Upload modal
   const [uploadTopicId, setUploadTopicId] = useState<string | null>(null);
   const [fileToUpload, setFileToUpload] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -53,19 +76,23 @@ export const MaterialsManagement: React.FC = () => {
 
   const handleOpenCreate = (parentId: string | null = null) => {
     setEditingTopicId(null);
+    setEditingTopicFiles([]);
     setTitle('');
     setDescription('');
     setTheoryContentHtml('');
     setParentTopicId(parentId);
+    setModalFile(null);
     setIsModalOpen(true);
   };
 
   const handleOpenEdit = (topic: any) => {
     setEditingTopicId(topic.id);
+    setEditingTopicFiles(topic.files || []);
     setTitle(topic.title);
     setDescription(topic.description || '');
     setTheoryContentHtml(topic.theoryContentHtml || '');
     setParentTopicId(topic.parentTopicId || null);
+    setModalFile(null);
     setIsModalOpen(true);
   };
 
@@ -74,6 +101,7 @@ export const MaterialsManagement: React.FC = () => {
     setSubmitting(true);
 
     try {
+      let topicId = editingTopicId;
       if (editingTopicId) {
         await api.put(`/teacher/topics/${editingTopicId}`, {
           title,
@@ -82,15 +110,27 @@ export const MaterialsManagement: React.FC = () => {
           parentTopicId,
         });
       } else {
-        await api.post('/teacher/topics', {
+        const res = await api.post('/teacher/topics', {
           sectionName: activeTab,
           parentTopicId,
           title,
           description,
           theoryContentHtml,
         });
+        topicId = res.data.topic?.id;
       }
+
+      // If a file was selected in the topic modal, upload it now
+      if (modalFile && topicId) {
+        const formData = new FormData();
+        formData.append('file', modalFile);
+        await api.post(`/teacher/topics/${topicId}/files`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+      }
+
       setIsModalOpen(false);
+      setModalFile(null);
       fetchSections();
     } catch (err) {
       alert('Тақырыпты сақтау кезінде қате шықты');
@@ -138,13 +178,15 @@ export const MaterialsManagement: React.FC = () => {
     if (!window.confirm('Бұл файлды жоюды растайсыз ба?')) return;
     try {
       await api.delete(`/teacher/files/${fileId}`);
+      if (editingTopicId) {
+        setEditingTopicFiles(prev => prev.filter(f => f.id !== fileId));
+      }
       fetchSections();
     } catch (err) {
       alert('Файлды жою мүмкін болмады');
     }
   };
 
-  // Filter root topics (no parent)
   const rootTopics = currentSection?.topics?.filter((t: any) => !t.parentTopicId) || [];
 
   return (
@@ -154,7 +196,7 @@ export const MaterialsManagement: React.FC = () => {
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Жаттығулар мен теория</h1>
           <p className="text-xs text-slate-500 mt-1">
-            Оқылым және Жазылым бөлімдерінің оқу материалдары, ережелер және мини-тесттер
+            Оқылым және Жазылым бөлімдерінің оқу материалдары, ережелер, файлдар және мини-тесттер
           </p>
         </div>
         <button
@@ -203,7 +245,6 @@ export const MaterialsManagement: React.FC = () => {
           {rootTopics.map((topic: any) => {
             const subTopics = currentSection?.topics?.filter((t: any) => t.parentTopicId === topic.id) || [];
             const hasQuiz = topic.quizzes && topic.quizzes.length > 0;
-            const quizId = hasQuiz ? topic.quizzes[0].id : null;
 
             return (
               <div
@@ -239,9 +280,10 @@ export const MaterialsManagement: React.FC = () => {
                     <button
                       onClick={() => setUploadTopicId(topic.id)}
                       title="Файл тіркеу"
-                      className="p-1.5 rounded-xl text-slate-500 hover:text-nis-navy-800 hover:bg-slate-200/60"
+                      className="p-1.5 rounded-xl text-slate-500 hover:text-nis-navy-800 hover:bg-slate-200/60 flex items-center space-x-1 text-xs font-medium"
                     >
                       <Upload className="w-4 h-4" />
+                      <span className="hidden sm:inline">Файл қосу</span>
                     </button>
 
                     <button
@@ -281,33 +323,56 @@ export const MaterialsManagement: React.FC = () => {
                     <p className="text-xs text-slate-400 italic">Теориялық мазмұн әлі жазылмаған</p>
                   )}
 
-                  {/* Attached Files */}
+                  {/* Attached Files List */}
                   {topic.files && topic.files.length > 0 && (
                     <div className="pt-2">
-                      <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">
-                        Прикреплённые файлы:
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2 flex items-center space-x-1.5">
+                        <Paperclip className="w-3.5 h-3.5" />
+                        <span>Тіркелген файлдар ({topic.files.length}):</span>
                       </p>
-                      <div className="flex flex-wrap gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {topic.files.map((file: any) => (
                           <div
                             key={file.id}
-                            className="inline-flex items-center space-x-2 bg-slate-100 px-3 py-1.5 rounded-xl text-xs text-slate-700"
+                            className="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl border border-slate-200 hover:border-slate-300 transition-all text-xs"
                           >
-                            <FileCode className="w-3.5 h-3.5 text-nis-navy-700" />
-                            <a
-                              href={file.fileUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="hover:underline font-medium"
-                            >
-                              {file.fileName}
-                            </a>
-                            <button
-                              onClick={() => handleDeleteFile(file.id)}
-                              className="text-slate-400 hover:text-rose-600 ml-1"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </button>
+                            <div className="flex items-center space-x-2.5 min-w-0 pr-2">
+                              {getFileIcon(file.fileType || file.fileName)}
+                              <div className="truncate">
+                                <a
+                                  href={getFileUrl(file.fileUrl)}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="font-bold text-slate-800 hover:text-nis-navy-800 hover:underline truncate block"
+                                >
+                                  {file.fileName}
+                                </a>
+                                {file.fileSize > 0 && (
+                                  <span className="text-[10px] text-slate-400 block">
+                                    {formatFileSize(file.fileSize)}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-1 shrink-0">
+                              <a
+                                href={getFileUrl(file.fileUrl)}
+                                download
+                                target="_blank"
+                                rel="noreferrer"
+                                title="Скачать"
+                                className="p-1 rounded-lg text-slate-500 hover:text-nis-navy-800 hover:bg-slate-200/60"
+                              >
+                                <Download className="w-3.5 h-3.5" />
+                              </a>
+                              <button
+                                onClick={() => handleDeleteFile(file.id)}
+                                title="Удалить файл"
+                                className="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -411,12 +476,59 @@ export const MaterialsManagement: React.FC = () => {
               Теориялық мазмұны (HTML / Текст)
             </label>
             <textarea
-              rows={8}
+              rows={6}
               value={theoryContentHtml}
               onChange={e => setTheoryContentHtml(e.target.value)}
               placeholder="Теориялық ережелерді, мысалдарды және кестелерді жазыңыз..."
               className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-nis-navy-600 leading-relaxed"
             />
+          </div>
+
+          {/* Existing attached files in modal (if editing) */}
+          {editingTopicId && editingTopicFiles.length > 0 && (
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                Тіркелген файлдар ({editingTopicFiles.length})
+              </label>
+              <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                {editingTopicFiles.map((file: any) => (
+                  <div
+                    key={file.id}
+                    className="flex items-center justify-between p-2 bg-slate-100 rounded-xl text-xs"
+                  >
+                    <div className="flex items-center space-x-2 truncate">
+                      {getFileIcon(file.fileType || file.fileName)}
+                      <span className="font-medium text-slate-800 truncate">{file.fileName}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteFile(file.id)}
+                      className="text-rose-600 hover:text-rose-800 text-xs font-bold ml-2 shrink-0"
+                    >
+                      Жою
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* File Upload input zone in modal */}
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+              {editingTopicId ? 'Қосымша файл тіркеу' : 'Файл тіркеу (міндетті емес)'}
+            </label>
+            <div className="border-2 border-dashed border-slate-300 rounded-xl p-4 bg-slate-50/50 text-center">
+              <input
+                type="file"
+                accept=".pdf,.docx,.doc,.pptx,.ppt,.png,.jpg,.jpeg,.webp"
+                onChange={e => setModalFile(e.target.files?.[0] || null)}
+                className="w-full text-xs text-slate-500 file:mr-4 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-nis-navy-800 file:text-white hover:file:bg-nis-navy-700"
+              />
+              <p className="text-[10px] text-slate-400 mt-1">
+                Қолдау көрсетілетін форматтар: PDF, DOCX, PPTX, Суреттер (макс. 25MB)
+              </p>
+            </div>
           </div>
 
           <div className="pt-2 flex justify-end space-x-3">
@@ -438,7 +550,7 @@ export const MaterialsManagement: React.FC = () => {
         </form>
       </Modal>
 
-      {/* Modal: Upload file */}
+      {/* Quick Upload Modal */}
       <Modal
         isOpen={!!uploadTopicId}
         onClose={() => setUploadTopicId(null)}
@@ -449,9 +561,13 @@ export const MaterialsManagement: React.FC = () => {
             <input
               type="file"
               required
+              accept=".pdf,.docx,.doc,.pptx,.ppt,.png,.jpg,.jpeg,.webp"
               onChange={e => setFileToUpload(e.target.files?.[0] || null)}
               className="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-nis-navy-800 file:text-white hover:file:bg-nis-navy-700"
             />
+            <p className="text-[11px] text-slate-400 mt-2">
+              PDF, DOCX, PPTX, PNG, JPG, JPEG, WEBP қолданылады (25MB дейін)
+            </p>
           </div>
 
           <div className="flex justify-end space-x-3 pt-2">

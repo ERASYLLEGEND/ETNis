@@ -1,14 +1,32 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import api from '../../api/client';
+import api, { getFileUrl } from '../../api/client';
 import {
   ArrowLeft,
-  BookOpen,
   FileCode,
   Download,
-  HelpCircle,
-  CheckCircle,
+  FileText,
+  FileSpreadsheet,
+  Image as ImageIcon,
+  Paperclip,
 } from 'lucide-react';
+
+function formatFileSize(bytes: number): string {
+  if (!bytes || bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+}
+
+function getFileIcon(fileType: string) {
+  const type = (fileType || '').toLowerCase();
+  if (type.includes('pdf')) return <FileText className="w-5 h-5 text-red-600 shrink-0" />;
+  if (type.includes('doc')) return <FileText className="w-5 h-5 text-blue-600 shrink-0" />;
+  if (type.includes('ppt')) return <FileSpreadsheet className="w-5 h-5 text-orange-600 shrink-0" />;
+  if (type.match(/png|jpg|jpeg|webp|gif|svg/)) return <ImageIcon className="w-5 h-5 text-emerald-600 shrink-0" />;
+  return <FileCode className="w-5 h-5 text-nis-navy-700 shrink-0" />;
+}
 
 export const TopicDetailView: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -87,26 +105,34 @@ export const TopicDetailView: React.FC = () => {
       {/* Attached Files */}
       {topic.files && topic.files.length > 0 && (
         <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-3">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-            Қосымша жүктеп алу файлдары
+          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center space-x-2">
+            <Paperclip className="w-4 h-4" />
+            <span>Қосымша жүктеп алу файлдары ({topic.files.length})</span>
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {topic.files.map((file: any) => (
               <a
                 key={file.id}
-                href={file.fileUrl}
+                href={getFileUrl(file.fileUrl)}
                 download
                 target="_blank"
                 rel="noreferrer"
-                className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 hover:bg-slate-100/80 transition-all flex items-center justify-between group"
+                className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 hover:bg-slate-100/80 hover:border-slate-300 transition-all flex items-center justify-between group"
               >
-                <div className="flex items-center space-x-3">
-                  <FileCode className="w-5 h-5 text-nis-navy-700 shrink-0" />
-                  <span className="text-xs font-bold text-slate-800 group-hover:text-nis-navy-800">
-                    {file.fileName}
-                  </span>
+                <div className="flex items-center space-x-3 min-w-0 pr-2">
+                  {getFileIcon(file.fileType || file.fileName)}
+                  <div className="truncate">
+                    <span className="text-xs font-bold text-slate-800 group-hover:text-nis-navy-800 truncate block">
+                      {file.fileName}
+                    </span>
+                    {file.fileSize > 0 && (
+                      <span className="text-[10px] text-slate-400 block">
+                        {formatFileSize(file.fileSize)}
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <Download className="w-4 h-4 text-slate-400 group-hover:text-nis-navy-800" />
+                <Download className="w-4 h-4 text-slate-400 group-hover:text-nis-navy-800 shrink-0" />
               </a>
             ))}
           </div>
